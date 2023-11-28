@@ -19,6 +19,7 @@ package rest
 import (
 	"embed"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io"
 	"net/http"
@@ -77,7 +78,7 @@ var createTemplate = `
 		<div class="modal-content text-[#41454c] bg-[#fcfcfc] dark:text-[#ffffff] dark:bg-[#031022]">
 				<h3 class="text-3xl text-white max-w-none">Secret Information</h3>
 			<div class="text-left items-left">
-				<div><b>Secret ID</b>: {{ .ID }}</div>
+				<div><b>Secret ID</b>: <a href={{ .Link }}>{{ .ID }}</a></div>
 				<div><b>Password</b>: {{ .Password }}</div>
 			<div>
 				<button class="mt-3 bg-transparent font-semibold hover:text-white py-2 px-4 border hover:border-transparent rounded" type="button" _="on click trigger closeModal">Close</button>
@@ -109,7 +110,15 @@ func addHxSecret(w http.ResponseWriter, r *http.Request, b app.Backend) error {
 		return handleHTMXError(err, w)
 	}
 
-	return modal.Execute(w, resp)
+	url := r.Header.Get("Hx-Current-Url")
+
+	idPass := IDPass{
+		ID:       resp.ID,
+		Password: resp.Password,
+		Link:     fmt.Sprintf(`%s?id=%s`, url, resp.ID),
+	}
+
+	return modal.Execute(w, idPass)
 }
 
 func getHxSecret(w http.ResponseWriter, r *http.Request, b app.Backend) error {

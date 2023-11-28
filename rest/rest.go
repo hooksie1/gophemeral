@@ -31,13 +31,15 @@ import (
 )
 
 type Server struct {
-	Backend app.Backend
-	Router  *mux.Router
+	Hostname string
+	Backend  app.Backend
+	Router   *mux.Router
 }
 
 type IDPass struct {
 	ID       string `json:"id,omitempty"`
 	Password string `json:"password,omitempty"`
+	Link     string `json:"link,omitempty"`
 }
 
 type TextViews struct {

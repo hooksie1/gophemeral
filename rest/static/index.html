@@ -93,6 +93,12 @@
       </div>
   </div>
 
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("id")) {
+        document.getElementById("id").value = params.get("id");
+    }
+  </script>
 
 </body>
 

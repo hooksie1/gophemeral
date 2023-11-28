@@ -42,7 +42,6 @@ func init() {
 	viper.BindPFlag("collection", startCmd.PersistentFlags().Lookup("collection"))
 	startCmd.PersistentFlags().IntP("port", "p", 8080, "port for server")
 	viper.BindPFlag("port", startCmd.PersistentFlags().Lookup("port"))
-
 }
 
 func setBackend() (app.Backend, error) {
