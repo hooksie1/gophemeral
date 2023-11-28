@@ -34,7 +34,7 @@ var lookupTemplate = `
 <div id="modal" _="on closeModal add .closing then wait for animationend then remove me">
 	<div class="modal-underlay">
 		<div class="modal-content text-[#41454c] bg-[#fcfcfc] dark:text-[#ffffff] dark:bg-[#031022]">
-				<h3 class="text-3xl text-white max-w-none">Secret Information</h3>
+        <h3 class="text-3xl text-[#41454c] dark:text-[#ffffff] max-w-none">Secret Information</h3>
             {{ if .Text  }}
 			    <div class="text-left items-left">
 			    	<div><b>Secret Text</b>: {{ .Text }}</div>
@@ -60,7 +60,7 @@ var errorTemplate = `
 <div id="modal" _="on closeModal add .closing then wait for animationend then remove me">
 	<div class="modal-underlay">
 		<div class="modal-content text-[#41454c] bg-[#fcfcfc] dark:text-[#ffffff] dark:bg-[#031022]">
-			<h3 class="text-3xl text-white max-w-none">Secret Information</h3>
+            <h3 class="text-3xl text-[#41454c] dark:text-[#ffffff] max-w-none">Secret Information</h3>
 			<div class="text-left items-left">
 				<div>{{ .Err }}</div>
 			</div>
@@ -76,7 +76,7 @@ var createTemplate = `
 <div id="modal" _="on closeModal add .closing then wait for animationend then remove me">
 	<div class="modal-underlay">
 		<div class="modal-content text-[#41454c] bg-[#fcfcfc] dark:text-[#ffffff] dark:bg-[#031022]">
-				<h3 class="text-3xl text-white max-w-none">Secret Information</h3>
+            <h3 class="text-3xl text-[#41454c] dark:text-[#ffffff] max-w-none">Secret Information</h3>
 			<div class="text-left items-left">
 				<div><b>Secret ID</b>: <a href={{ .Link }}>{{ .ID }}</a></div>
 				<div><b>Password</b>: {{ .Password }}</div>
@@ -110,7 +110,11 @@ func addHxSecret(w http.ResponseWriter, r *http.Request, b app.Backend) error {
 		return handleHTMXError(err, w)
 	}
 
-	url := r.Header.Get("Hx-Current-Url")
+	url := r.Header.Get("origin")
+
+	if r.Header.Get("x-forward-host") != "" {
+		url = r.Header.Get("x-forward-host")
+	}
 
 	idPass := IDPass{
 		ID:       resp.ID,
