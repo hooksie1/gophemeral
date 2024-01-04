@@ -13,4 +13,4 @@ COPY --from=builder /app/gophemeral .
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /database .
 
-CMD ["./gophemeral", "start", "--path", "/database/gophemeral.db"]
+CMD ["./gophemeral", "start", "--nats"]

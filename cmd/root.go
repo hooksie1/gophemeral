@@ -42,7 +42,12 @@ func Execute() {
 	}
 }
 
+var replacer = strings.NewReplacer("-", "_")
+
 func init() {
+	viper.SetEnvPrefix("gophemeral")
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(replacer)
 	_, ok := os.LookupEnv("GOPHEMERAL_SERVER")
 	if !ok {
 		viper.Set("server-address", "https://api.gophemeral.com")

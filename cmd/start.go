@@ -18,6 +18,7 @@ package cmd
 
 import (
 	bc "github.com/hooksie1/bclient"
+	"github.com/nats-io/nats.go"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"gitlab.com/hooksie1/gophemeral/app"
@@ -42,12 +43,26 @@ func init() {
 	viper.BindPFlag("collection", startCmd.PersistentFlags().Lookup("collection"))
 	startCmd.PersistentFlags().IntP("port", "p", 8080, "port for server")
 	viper.BindPFlag("port", startCmd.PersistentFlags().Lookup("port"))
+	startCmd.PersistentFlags().Bool("nats", false, "Use NATS backend")
+	viper.BindPFlag("nats", startCmd.PersistentFlags().Lookup("nats"))
+	startCmd.PersistentFlags().String("urls", "nats://localhost:4222", "NATS URLs")
+	viper.BindPFlag("urls", startCmd.PersistentFlags().Lookup("urls"))
+	startCmd.PersistentFlags().String("jwt", "", "User JWT")
+	viper.BindPFlag("jwt", startCmd.PersistentFlags().Lookup("jwt"))
+	startCmd.PersistentFlags().String("seed", "", "User seed")
+	viper.BindPFlag("seed", startCmd.PersistentFlags().Lookup("seed"))
 }
 
 func setBackend() (app.Backend, error) {
-	//if viper.GetString("collection") != "" {
-	//	return app.NewFaunaConnection(viper.GetString("token"), viper.GetString("collection")), nil
-	//}
+	if viper.GetBool("nats") {
+		creds := nats.UserJWTAndSeed(viper.GetString("jwt"), viper.GetString("seed"))
+		nc := app.NewNatsBackend(viper.GetString("urls"), creds)
+		if err := nc.Connect(); err != nil {
+			return nil, err
+		}
+
+		return nc, nil
+	}
 
 	client := bc.NewClient()
 	if err := client.NewDB(viper.GetString("path")); err != nil {

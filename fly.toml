@@ -1,4 +1,4 @@
-# fly.toml app configuration file generated for gophemeral-nameless-wind-7251 on 2023-11-26T19:00:37-05:00
+# fly.toml app configuration file generated for gophemeral-nameless-wind-7251 on 2023-11-29T17:59:11-05:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
@@ -6,7 +6,8 @@
 app = "gophemeral-nameless-wind-7251"
 primary_region = "iad"
 
-[build]
+[env]
+  GOPHEMERAL_URLS="tls://connect.ngs.global"
 
 [http_service]
   internal_port = 8080
@@ -14,10 +15,6 @@ primary_region = "iad"
   auto_stop_machines = true
   auto_start_machines = true
   min_machines_running = 0
-
-[mounts]
-  source="gophemeral_data"
-  destination="/database"
 
 [[vm]]
   cpu_kind = "shared"
