@@ -39,7 +39,14 @@ To retrieve a secret, send a GET request to `https://gophemeral.com/api/secret?i
 
 Gophemeral is also available as a NATS micro. 
 
-You can run it yourself and the default subjects are `gophemeral.secrets.store` and `gophemeral.secrets.get`. The payloads are the same as the REST API.
+You can run it yourself and the default subjects are `gophemeral.secrets.store` and `gophemeral.secrets.get`. The payload for storing a secret is the same, the payload for retrieving a secret is 
+
+```
+{
+	"id": "<id>",
+	"password": "<password>"
+}
+```
 
 The hosted Gophemeral is also a public export that is available on Synadia Cloud using the default subjects. The public key for the account is `ABMWCVIX4SZJYIDI2QAWBL2IPLF5SA6LPXCKU5MYHO4ILJM7X4VSRF7S`.
 
