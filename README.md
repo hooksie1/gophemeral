@@ -41,7 +41,7 @@ Gophemeral is also available as a NATS micro.
 
 You can run it yourself and the default subjects are `gophemeral.secrets.store` and `gophemeral.secrets.get`. The payloads are the same as the REST API.
 
-The hosted Gophemeral is also available on Synadia Cloud. The public key for the account is `ABMWCVIX4SZJYIDI2QAWBL2IPLF5SA6LPXCKU5MYHO4ILJM7X4VSRF7S`.
+The hosted Gophemeral is also a public export that is available on Synadia Cloud using the default subjects. The public key for the account is `ABMWCVIX4SZJYIDI2QAWBL2IPLF5SA6LPXCKU5MYHO4ILJM7X4VSRF7S`.
 
 
 ## Technologies
