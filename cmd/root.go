@@ -1,5 +1,5 @@
 /*
-Copyright © 2021 John Hooks john@hooks.technology
+Copyright © 2024 John Hooks
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,47 +17,65 @@ limitations under the License.
 package cmd
 
 import (
-	"fmt"
-	"log"
 	"os"
 	"strings"
 
-	"github.com/spf13/viper"
-
+	"github.com/CoverWhale/logr"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
-// rootCmd represents the base command when called without any subcommands
+var cfgFile string
+var cfg Config
+
 var rootCmd = &cobra.Command{
 	Use:   "gophemeral",
-	Short: "gophemeral holds secrets for a limited time",
+	Short: "The app description",
+}
+var replacer = strings.NewReplacer("-", "_")
+
+type Config struct {
+	Port int `mapstructure:"port"`
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+	viper.SetDefault("service-name", "gophemeral-local")
+	err := rootCmd.Execute()
+	if err != nil {
 		os.Exit(1)
 	}
 }
 
-var replacer = strings.NewReplacer("-", "_")
-
 func init() {
+	cobra.OnInitialize(initConfig)
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.gophemeral.json)")
+	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+}
+
+func initConfig() {
+
+	if cfgFile != "" {
+		viper.SetConfigFile(cfgFile)
+	} else {
+		home, err := os.UserHomeDir()
+		cobra.CheckErr(err)
+
+		viper.AddConfigPath(home)
+		viper.SetConfigType("json")
+		viper.SetConfigName(".gophemeral")
+	}
+
 	viper.SetEnvPrefix("gophemeral")
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(replacer)
-	_, ok := os.LookupEnv("GOPHEMERAL_SERVER")
-	if !ok {
-		viper.Set("server-address", "https://api.gophemeral.com")
-	} else {
-		viper.Set("server-address", os.Getenv("GOPHEMERAL_SERVER"))
+
+	// If a config file is found, read it in.
+	logger := logr.NewLogger()
+	if err := viper.ReadInConfig(); err == nil {
+		logger.Debugf("using config %s", viper.ConfigFileUsed())
 	}
 
-	if !strings.HasPrefix(viper.GetString("server-address"), "http") {
-		log.Println("server must start with http:// or https://")
-		os.Exit(1)
+	if err := viper.Unmarshal(&cfg); err != nil {
+		cobra.CheckErr(err)
 	}
-
 }

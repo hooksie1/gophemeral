@@ -1,5 +1,5 @@
 /*
-Copyright © 2021 John Hooks john@hooks.technology
+Copyright © 2024 John Hooks
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,10 +24,9 @@ import (
 
 var Version = "dev"
 
-// versionCmd represents the version command
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "Print gophemeral version",
+	Short: "Prints the version",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println(Version)
 	},

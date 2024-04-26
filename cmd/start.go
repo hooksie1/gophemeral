@@ -1,5 +1,5 @@
 /*
-Copyright © 2021 John Hooks john@hooks.technology
+Copyright © 2024 John Hooks
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,78 +17,110 @@ limitations under the License.
 package cmd
 
 import (
-	bc "github.com/hooksie1/bclient"
-	"github.com/nats-io/nats.go"
+	"context"
+
+	cwnats "github.com/CoverWhale/coverwhale-go/transports/nats"
+	"github.com/CoverWhale/logr"
+	"github.com/hooksie1/gophemeral/rest"
+	"github.com/hooksie1/gophemeral/secrets"
+	"github.com/hooksie1/gophemeral/service"
+	"github.com/invopop/jsonschema"
+	"github.com/nats-io/nats.go/micro"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"gitlab.com/hooksie1/gophemeral/app"
-	"gitlab.com/hooksie1/gophemeral/rest"
 )
 
-// startCmd represents the start command
 var startCmd = &cobra.Command{
-	Use:   "start",
-	Short: "Starts the server",
-	RunE:  startServer,
+	Use:          "start",
+	Short:        "starts the service",
+	RunE:         start,
+	SilenceUsage: true,
 }
 
 func init() {
-	rootCmd.AddCommand(startCmd)
-
-	startCmd.PersistentFlags().String("path", "gophemeral.db", "path to local db")
-	viper.BindPFlag("path", startCmd.PersistentFlags().Lookup("path"))
-	startCmd.PersistentFlags().String("token", "", "token for backend")
-	viper.BindPFlag("token", startCmd.PersistentFlags().Lookup("token"))
-	startCmd.PersistentFlags().String("collection", "", "collection for backend")
-	viper.BindPFlag("collection", startCmd.PersistentFlags().Lookup("collection"))
-	startCmd.PersistentFlags().IntP("port", "p", 8080, "port for server")
-	viper.BindPFlag("port", startCmd.PersistentFlags().Lookup("port"))
-	startCmd.PersistentFlags().Bool("nats", false, "Use NATS backend")
-	viper.BindPFlag("nats", startCmd.PersistentFlags().Lookup("nats"))
-	startCmd.PersistentFlags().String("urls", "nats://localhost:4222", "NATS URLs")
-	viper.BindPFlag("urls", startCmd.PersistentFlags().Lookup("urls"))
-	startCmd.PersistentFlags().String("jwt", "", "User JWT")
-	viper.BindPFlag("jwt", startCmd.PersistentFlags().Lookup("jwt"))
-	startCmd.PersistentFlags().String("seed", "", "User seed")
-	viper.BindPFlag("seed", startCmd.PersistentFlags().Lookup("seed"))
+	// attach start subcommand to service subcommand
+	serviceCmd.AddCommand(startCmd)
 }
 
-func setBackend() (app.Backend, error) {
-	if viper.GetBool("nats") {
-		creds := nats.UserJWTAndSeed(viper.GetString("jwt"), viper.GetString("seed"))
-		nc := app.NewNatsBackend(viper.GetString("urls"), creds)
-		if err := nc.Connect(); err != nil {
-			return nil, err
-		}
+func start(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+	logger := logr.NewLogger()
 
-		return nc, nil
+	config := micro.Config{
+		Name:        "gophemeral",
+		Version:     "0.0.1",
+		Description: "Secrets sharing for everyone",
 	}
 
-	client := bc.NewClient()
-	if err := client.NewDB(viper.GetString("path")); err != nil {
-		return nil, err
+	nc, err := newNatsConnection("gophemeral-server")
+	if err != nil {
+		return err
 	}
+	defer nc.Close()
 
-	bc := app.BoltDB{
-		Client: client,
-	}
-
-	if err := bc.Init(); err != nil {
-		return nil, err
-	}
-
-	return bc, nil
-}
-
-func startServer(cmd *cobra.Command, args []string) error {
-	backend, err := setBackend()
+	backend, err := secrets.NewNatsBackend(nc)
 	if err != nil {
 		return err
 	}
 
-	s := rest.NewServer(backend)
+	// uncomment for config watching
+	//js, err := nc.JetStream()
+	//if err != nil {
+	//    return err
+	//}
 
-	s.Serve(viper.GetInt("port"))
+	// uncomment to enable logging over NATS
+	//logger.SetOutput(cwnats.NewNatsLogger("prime.logs.gophemeral", nc))
 
+	svc, err := micro.AddService(nc, config)
+	if err != nil {
+		logr.Fatal(err)
+	}
+
+	// add a handler group
+	grp := svc.AddGroup("gophemeral.secrets")
+	grp.AddEndpoint("store",
+		service.SecretHandler(backend, logger, service.StoreSecret),
+		micro.WithEndpointMetadata(map[string]string{
+			"description":     "stores a secret",
+			"format":          "application/json",
+			"request_schema":  schemaString(&secrets.Secret{}),
+			"response_schema": schemaString(&secrets.Secret{}),
+		}),
+		micro.WithEndpointSubject("store"),
+	)
+	grp.AddEndpoint("get",
+		service.SecretHandler(backend, logger, service.GetSecret),
+		micro.WithEndpointMetadata(map[string]string{
+			"description":     "gets a secret",
+			"format":          "application/json",
+			"request_schema":  schemaString(&secrets.Secret{}),
+			"response_schema": schemaString(&secrets.Secret{}),
+		}),
+		micro.WithEndpointSubject("get"),
+	)
+
+	// uncomment to enable config watching
+	//go service.WatchForConfig(logger, js)
+	logger.Infof("service %s %s started", svc.Info().Name, svc.Info().ID)
+	go cwnats.HandleNotify(svc)
+
+	errChan := make(chan error)
+
+	s := rest.NewServer(backend, logger, viper.GetInt("port"))
+
+	logger.Infof("starting HTTP server on port %d", viper.GetInt("port"))
+	go s.Serve(errChan)
+	s.AutoHandleErrors(ctx, errChan)
 	return nil
+}
+
+func schemaString(s any) string {
+	schema := jsonschema.Reflect(s)
+	data, err := schema.MarshalJSON()
+	if err != nil {
+		logr.Fatal(err)
+	}
+
+	return string(data)
 }

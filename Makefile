@@ -1,36 +1,44 @@
 PROJECT_NAME := "gophemeral"
-PKG := "gitlab.com/hooksie1/$(PROJECT_NAME)"
+PKG := "github.com/hooksie1/gophemeral"
 PKG_LIST := $(shell go list ${PKG}/... | grep -v /vendor/)
 GO_FILES := $(shell find . -name '*.go' | grep -v /vendor/ | grep -v _test.go)
-VERSION := $$(git describe --tags | cut -d '-' -f 1)
+VERSION := $(shell if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then git describe --exact-match --tags HEAD 2>/dev/null || echo "dev-$(shell git rev-parse --short HEAD)"; else echo "dev"; fi)
+GOOS=$(shell go env GOOS)
+GOARCH=$(shell go env GOARCH)
 
-.PHONY: all build docker dep clean test coverage lint
+.PHONY: all build deps clean test coverage lint docs
 
 all: build
 
-lint: ## Lint the files
-	@golint -set_exit_status ./...
+deps: ## Get dependencies
+	go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
 
-test: ## Run unittests
-	@go test ./...
+lint: deps ## Lint the files
+	go vet
+	gocyclo -over 10 -ignore "generated" ./
 
-coverage:
-	@go test -cover ./...
-	@go test -coverprofile=cover.out && go tool cover -html=cover.out -o coverage.html
+test: lint ## Run unittests
+	go test -v ./...
 
-dep: ## Get the dependencies
-	@go get -u golang.org/x/lint/golint
+coverage: ## Create test coverage report
+	go test -cover ./...
+	go test ./... -coverprofile=cover.out && go tool cover -html=cover.out -o coverage.html
 
-build: dep ## Build the binary file
-	@CGO_ENABLED=0 GOOS=linux go build -a -ldflags "-w -X '$(PKG)/cmd.Version=$(VERSION)'" -o gophemeral
-	@CGO_ENABLED=0 GOOS=windows go build -a -ldflags "-w -X '$(PKG)/cmd.Version=$(VERSION)'" -o gophemeral.exe
-	@CGO_ENABLED=0 GOOS=darwin go build -a -ldflags "-w -X '$(PKG)/cmd.Version=$(VERSION)'" -o gophemeral_darwin
+goreleaser: tidy ## Creates local multiarch releases with GoReleaser
+	goreleaser release --snapshot --rm-dist
 
-docker: build
-	@docker build -f Dockerfile.app -t hooksie1/gophemeral:$(VERSION) .
+tidy: ## Pull in dependencies
+	go mod tidy && go mod vendor
 
-push: docker
-	@docker push hooksie1/gophemeral:$(VERSION)
+fmt: ## Format All files
+	go fmt ./...
+
+gophemeralctl: ## Builds the binary on the current platform
+	go build -mod=vendor -a -ldflags "-w -X '$(PKG)/cmd.Version=$(VERSION)'" -o $(PROJECT_NAME)ctl
+
+docs: ## Builds the cli documentation
+	mkdir -p docs
+	./gophemeralctl docs
 
 clean: ## Remove previous build
 	git clean -fd

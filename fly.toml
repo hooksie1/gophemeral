@@ -7,7 +7,7 @@ app = "gophemeral-nameless-wind-7251"
 primary_region = "iad"
 
 [env]
-  GOPHEMERAL_URLS="tls://connect.ngs.global"
+  GOPHEMERAL_NATS_URLS="tls://connect.ngs.global"
 
 [http_service]
   internal_port = 8080

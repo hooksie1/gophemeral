@@ -24,7 +24,7 @@ import (
 	"io"
 	"net/http"
 
-	"gitlab.com/hooksie1/gophemeral/app"
+	"github.com/hooksie1/gophemeral/secrets"
 )
 
 //go:embed static/*
@@ -88,7 +88,7 @@ var createTemplate = `
 </div>
 `
 
-func addHxSecret(w http.ResponseWriter, r *http.Request, b app.Backend) error {
+func (s *Server) addHxSecret(w http.ResponseWriter, r *http.Request) error {
 	var tv TextViews
 
 	modal, err := template.New("modal").Parse(createTemplate)
@@ -100,12 +100,12 @@ func addHxSecret(w http.ResponseWriter, r *http.Request, b app.Backend) error {
 		return err
 	}
 
-	rec := app.Secret{
+	rec := secrets.Secret{
 		Text:  tv.Text,
 		Views: tv.Views,
 	}
 
-	resp, err := app.AddSecret(b, rec)
+	resp, err := secrets.AddSecret(s.Backend, rec)
 	if err != nil {
 		return handleHTMXError(err, w)
 	}
@@ -125,7 +125,7 @@ func addHxSecret(w http.ResponseWriter, r *http.Request, b app.Backend) error {
 	return modal.Execute(w, idPass)
 }
 
-func getHxSecret(w http.ResponseWriter, r *http.Request, b app.Backend) error {
+func (s *Server) getHxSecret(w http.ResponseWriter, r *http.Request) error {
 	modal, err := template.New("modal").Parse(lookupTemplate)
 	if err != nil {
 		return err
@@ -133,12 +133,12 @@ func getHxSecret(w http.ResponseWriter, r *http.Request, b app.Backend) error {
 
 	r.ParseForm()
 
-	secret := app.Secret{
+	secret := secrets.Secret{
 		ID:       r.FormValue("id"),
 		Password: r.FormValue("password"),
 	}
 
-	resp, err := app.GetSecret(secret, b)
+	resp, err := secrets.GetSecret(secret, s.Backend)
 	if err != nil {
 		return handleHTMXError(err, w)
 	}

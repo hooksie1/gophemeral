@@ -20,11 +20,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-
-	"gitlab.com/hooksie1/gophemeral/app"
 )
 
-type AppHandlerFunc func(http.ResponseWriter, *http.Request, app.Backend) error
+type AppHandlerFunc func(http.ResponseWriter, *http.Request) error
 
 func getErrorDetails(err error) (int, string) {
 	clientError, ok := err.(ClientError)
@@ -37,9 +35,9 @@ func getErrorDetails(err error) (int, string) {
 
 }
 
-func errHandlers(h AppHandlerFunc, b app.Backend) http.HandlerFunc {
+func errHandlers(h AppHandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		err := h(w, r, b)
+		err := h(w, r)
 		if err == nil {
 			return
 		}

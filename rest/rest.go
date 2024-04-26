@@ -17,23 +17,30 @@ limitations under the License.
 package rest
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
-	"gitlab.com/hooksie1/gophemeral/app"
+	"github.com/CoverWhale/logr"
+	"github.com/hooksie1/gophemeral/secrets"
 
 	"github.com/gorilla/mux"
 )
 
 type Server struct {
 	Hostname string
-	Backend  app.Backend
-	Router   *mux.Router
+	Backend  secrets.Backend
+	Router   *http.Server
+	Logger   *logr.Logger
 }
 
 type IDPass struct {
@@ -116,38 +123,56 @@ func (i *IDPass) UnmarshalJSON(b []byte) error {
 
 }
 
-func NewServer(b app.Backend) Server {
+func NewServer(b secrets.Backend, l *logr.Logger, port int) Server {
+	address := fmt.Sprintf(":%d", port)
+
+	apiServer := &http.Server{
+		Addr:         address,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  10 * time.Second,
+	}
+
 	sub, err := fs.Sub(staticFS, "static")
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	s := Server{
+		Router:  apiServer,
+		Backend: b,
+		Logger:  l,
+	}
 	router := mux.NewRouter().StrictSlash(true)
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.FS(sub))))
 	router.Handle("/", http.FileServer(http.FS(sub)))
 
+	apiServer.Handler = router
+
 	hxRouter := router.PathPrefix("/hx").Subrouter().StrictSlash(true)
-	hxRouter.Handle("/createSecret", http.HandlerFunc(errHandlers(addHxSecret, b))).Methods("POST")
-	hxRouter.Handle("/lookupSecret", http.HandlerFunc(errHandlers(getHxSecret, b))).Methods("POST")
+	hxRouter.Handle("/createSecret", http.HandlerFunc(errHandlers(s.addHxSecret))).Methods("POST")
+	hxRouter.Handle("/lookupSecret", http.HandlerFunc(errHandlers(s.getHxSecret))).Methods("POST")
 
 	apiRouter := router.PathPrefix("/api").Subrouter().StrictSlash(true)
-	apiRouter.Handle("/secret", http.HandlerFunc(errHandlers(addSecret, b))).Methods("POST")
-	apiRouter.Handle("/secret", http.HandlerFunc(errHandlers(getSecret, b))).Methods("GET")
+	apiRouter.Handle("/secret", http.HandlerFunc(errHandlers(s.addSecret))).Methods("POST")
+	apiRouter.Handle("/secret", http.HandlerFunc(errHandlers(s.getSecret))).Methods("GET")
 	apiRouter.Handle("/health", http.HandlerFunc(getHealth)).Methods("GET")
 
-	apiRouter.Use(logger)
-	hxRouter.Use(logger)
+	apiRouter.Use(s.logger)
+	hxRouter.Use(s.logger)
+
+	apiServer.Handler = router
 
 	return Server{
-		Router:  router,
+		Router:  apiServer,
 		Backend: b,
+		Logger:  l,
 	}
 }
 
-func (s *Server) Serve(port int) {
-	address := fmt.Sprintf(":%d", port)
-	if err := http.ListenAndServe(address, s.Router); err != nil {
-		log.Println(err)
+func (s *Server) Serve(errChan chan<- error) {
+	if err := s.Router.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		errChan <- err
 	}
 }
 
@@ -156,30 +181,29 @@ func getHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 // logger logs the endpoint requested and times how long the request takes.
-func logger(inner http.Handler) http.Handler {
+func (s *Server) logger(inner http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
+		defer func() {
+			ctx := s.Logger.WithContext(map[string]string{"method": r.Method, "path": r.RequestURI})
+			ctx.Infof("processing time: %dms", time.Since(start).Milliseconds())
+
+		}()
 
 		inner.ServeHTTP(w, r)
 
-		log.Printf(
-			"%s %s %s",
-			r.Method,
-			r.RequestURI,
-			time.Since(start),
-		)
 	})
 }
 
 // AddRecord is a handler that creates a record
-func addSecret(w http.ResponseWriter, r *http.Request, b app.Backend) error {
-	var secret app.Secret
+func (s *Server) addSecret(w http.ResponseWriter, r *http.Request) error {
+	var secret secrets.Secret
 
 	if err := json.NewDecoder(r.Body).Decode(&secret); err != nil {
 		return err
 	}
 
-	record, err := app.AddSecret(b, secret)
+	record, err := secrets.AddSecret(s.Backend, secret)
 	if err != nil {
 		return err
 	}
@@ -197,14 +221,14 @@ func addSecret(w http.ResponseWriter, r *http.Request, b app.Backend) error {
 }
 
 // getRecord is a handler that retrieves a record
-func getSecret(w http.ResponseWriter, r *http.Request, b app.Backend) error {
+func (s *Server) getSecret(w http.ResponseWriter, r *http.Request) error {
 	password := r.Header.Get("X-Password")
-	secret := app.Secret{
+	secret := secrets.Secret{
 		ID:       r.URL.Query().Get("id"),
 		Password: password,
 	}
 
-	record, err := app.GetSecret(secret, b)
+	record, err := secrets.GetSecret(secret, s.Backend)
 	if err != nil {
 		return err
 	}
@@ -220,4 +244,30 @@ func getSecret(w http.ResponseWriter, r *http.Request, b app.Backend) error {
 
 	return nil
 
+}
+
+func (s *Server) AutoHandleErrors(ctx context.Context, errChan <-chan error) {
+	go func() {
+		serverErr := <-errChan
+		if serverErr != nil {
+			s.Logger.Errorf("error starting server: %v", serverErr)
+			s.ShutdownServer(ctx)
+		}
+	}()
+
+	sigTerm := make(chan os.Signal, 1)
+	signal.Notify(sigTerm, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	sig := <-sigTerm
+	s.Logger.Infof("received signal: %s", sig)
+	s.ShutdownServer(ctx)
+}
+
+func (s *Server) ShutdownServer(ctx context.Context) {
+	s.Logger.Info("shutting down server")
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	s.Logger.Info("server stopped")
+	os.Exit(1)
 }
