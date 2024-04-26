@@ -35,6 +35,14 @@ To create a secret, send a POST request with this payload to `https://gophemeral
 
 To retrieve a secret, send a GET request to `https://gophemeral.com/api/secret?id={message-id}` and the password in the header `X-Header`.
 
+## NATS Micro
+
+Gophemeral is also available as a NATS micro. 
+
+You can run it yourself and the default subjects are `gophemeral.secrets.store` and `gophemeral.secrets.get`. The payloads are the same as the REST API.
+
+The hosted Gophemeral is also available on Synadia Cloud. The public key for the account is `ABMWCVIX4SZJYIDI2QAWBL2IPLF5SA6LPXCKU5MYHO4ILJM7X4VSRF7S`.
+
 
 ## Technologies
 
