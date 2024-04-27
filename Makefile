@@ -25,7 +25,7 @@ coverage: ## Create test coverage report
 	go test ./... -coverprofile=cover.out && go tool cover -html=cover.out -o coverage.html
 
 goreleaser: tidy ## Creates local multiarch releases with GoReleaser
-	goreleaser release --snapshot --rm-dist
+	goreleaser release --snapshot --clean
 
 tidy: ## Pull in dependencies
 	go mod tidy && go mod vendor

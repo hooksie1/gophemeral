@@ -18,6 +18,7 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var clientCmd = &cobra.Command{
@@ -29,6 +30,8 @@ var clientCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(clientCmd)
 	natsFlags(clientCmd)
+	clientCmd.PersistentFlags().Bool("json", false, "Print response in JSON")
+	viper.BindPFlag("json", clientCmd.PersistentFlags().Lookup("json"))
 }
 
 func bindClientCmdFlags(cmd *cobra.Command, args []string) {
