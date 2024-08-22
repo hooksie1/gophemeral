@@ -24,6 +24,7 @@ type Backend interface {
 
 type Writer interface {
 	Write(Secret) error
+	Validate(Secret) error
 }
 type Reader interface {
 	Read(string) (Secret, error)
