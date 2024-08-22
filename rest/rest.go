@@ -41,6 +41,7 @@ type Server struct {
 	Backend  secrets.Backend
 	Router   *http.Server
 	Logger   *logr.Logger
+	Length   int
 }
 
 type IDPass struct {
@@ -163,11 +164,7 @@ func NewServer(b secrets.Backend, l *logr.Logger, port int) Server {
 
 	apiServer.Handler = router
 
-	return Server{
-		Router:  apiServer,
-		Backend: b,
-		Logger:  l,
-	}
+	return s
 }
 
 func (s *Server) Serve(errChan chan<- error) {

@@ -58,19 +58,10 @@ func start(cmd *cobra.Command, args []string) error {
 	}
 	defer nc.Close()
 
-	backend, err := secrets.NewNatsBackend(nc)
+	backend, err := secrets.NewNatsBackend(nc, secrets.DefaultValidator(viper.GetInt("max_characters")))
 	if err != nil {
 		return err
 	}
-
-	// uncomment for config watching
-	//js, err := nc.JetStream()
-	//if err != nil {
-	//    return err
-	//}
-
-	// uncomment to enable logging over NATS
-	//logger.SetOutput(cwnats.NewNatsLogger("prime.logs.gophemeral", nc))
 
 	svc, err := micro.AddService(nc, config)
 	if err != nil {
@@ -100,8 +91,6 @@ func start(cmd *cobra.Command, args []string) error {
 		micro.WithEndpointSubject("get"),
 	)
 
-	// uncomment to enable config watching
-	//go service.WatchForConfig(logger, js)
 	logger.Infof("service %s %s started", svc.Info().Name, svc.Info().ID)
 	go cwnats.HandleNotify(svc)
 

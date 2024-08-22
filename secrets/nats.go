@@ -19,20 +19,25 @@ package secrets
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
 
 	"github.com/nats-io/nats.go"
 )
 
+type ValidateFunc func(s Secret) error
+
 type NATS struct {
-	urls   string
-	bucket string
-	conn   *nats.Conn
-	opts   []nats.Option
-	js     nats.JetStreamContext
-	kv     nats.KeyValue
+	urls      string
+	bucket    string
+	conn      *nats.Conn
+	opts      []nats.Option
+	js        nats.JetStreamContext
+	kv        nats.KeyValue
+	validator ValidateFunc
 }
 
-func NewNatsBackend(nc *nats.Conn) (*NATS, error) {
+func NewNatsBackend(nc *nats.Conn, v ValidateFunc) (*NATS, error) {
 	js, err := nc.JetStream()
 	if err != nil {
 		return nil, err
@@ -42,12 +47,28 @@ func NewNatsBackend(nc *nats.Conn) (*NATS, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &NATS{
-		conn:   nc,
-		bucket: "secrets",
-		js:     js,
-		kv:     kv,
+		conn:      nc,
+		bucket:    "secrets",
+		js:        js,
+		kv:        kv,
+		validator: v,
 	}, nil
+}
+
+func DefaultValidator(length int) ValidateFunc {
+	return func(s Secret) error {
+		if len(s.Text) > length {
+			return NewSecretError(http.StatusBadRequest, fmt.Sprintf("secret length cannot be greater than %d", length))
+		}
+
+		return nil
+	}
+}
+
+func (n *NATS) Validate(s Secret) error {
+	return n.validator(s)
 }
 
 func (n *NATS) Write(s Secret) error {

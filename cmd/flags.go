@@ -48,9 +48,11 @@ func natsFlags(cmd *cobra.Command) {
 // bindServiceFlags binds the secret flag values to viper
 func bindServiceFlags(cmd *cobra.Command) {
 	viper.BindPFlag("port", cmd.Flags().Lookup("port"))
+	viper.BindPFlag("max_characters", cmd.Flags().Lookup("max-characters"))
 }
 
 // sererFlags adds the service flags to the passed in command
 func serviceFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().IntP("port", "p", 8080, "Server port")
+	cmd.PersistentFlags().IntP("max-characters", "m", 200, "Maximum characters for a secret")
 }

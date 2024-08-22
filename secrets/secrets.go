@@ -71,11 +71,12 @@ func AddSecret(w Writer, s Secret) (Secret, error) {
 	pass := generateString(24)
 	s.ID = ksuid.New().String()
 
-	if len(s.Text) > 200 {
-		return Secret{}, NewSecretError(http.StatusBadRequest, "message must be less than 200 chars")
-	}
 	if s.Views < 1 {
 		return Secret{}, NewSecretError(http.StatusBadRequest, "views must be greater than 0")
+	}
+
+	if err := w.Validate(s); err != nil {
+		return Secret{}, err
 	}
 
 	encryptedText, err := encrypt([]byte(s.Text), pass)
