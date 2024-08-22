@@ -12,7 +12,7 @@ Easy Secrets Sharing
 ## Overview
 Gophemeral is a temporary secret sharing tool. You can input a string and a number of views and Gophemeral will keep the string secret until the number of views runs out.
 
-Secrets must be under 100 characters. 
+Secrets must be 200 characters or less in the hosted version. 
 
 Site is [https://gophemeral.com](https://gophemeral.com).
 
