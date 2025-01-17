@@ -1,12 +1,8 @@
 <!DOCTYPE html>
-<html x-data="{colorMode: localStorage.getItem('colorMode') || localStorage.setItem('colorMode', 'light')}"
-  x-init="$watch('colorMode', val => localStorage.setItem('colorMode', val))"
-  x-bind:class="{'dark': colorMode === 'dark' || (colorMode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)}"
-  class="scroll-smooth">
-
+<html class="scroll-smooth">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Gophemeral</title>
   <meta name="description" content="" />
   <link rel="icon" type="image/x-icon"
@@ -128,7 +124,7 @@
   <div
     class="dark:flex dark: dark:flex-wrap dark:justify-center dark:gap-x-[15%] flex flex-wrap justify-center gap-x-[15%]">
     <div class>
-      <div class="mt-6 flex dark:flex dark:items-center items-center text-center max-w-lg">
+      <div class="my-6 mx-6 flex dark:flex dark:items-center items-center text-center max-w-lg">
         <p>Gophemeral is a temporary secret sharing tool. You can input a string and a number of views and Gophemeral
           will keep the string secret until the number of views runs out. Secrets must be 200 characters or less.
           Secrets will be deleted after 7 days.</p>
