@@ -1,5 +1,8 @@
 <!DOCTYPE html>
-<html class="scroll-smooth">
+<html x-data="{colorMode: localStorage.getItem('colorMode') || localStorage.setItem('colorMode', 'light')}"
+  x-init="$watch('colorMode', val => localStorage.setItem('colorMode', val))"
+  x-bind:class="{'dark': colorMode === 'dark' || (colorMode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)}"
+  class="scroll-smooth">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
