@@ -33,7 +33,7 @@ To create a secret, send a POST request with this payload to `https://gophemeral
 
 ## Lookup Secret
 
-To retrieve a secret, send a GET request to `https://gophemeral.com/api/secret?id={message-id}` and the password in the header `X-Header`.
+To retrieve a secret, send a GET request to `https://gophemeral.com/api/secret?id={message-id}` and the password in the header `X-Password`.
 
 ## NATS Micro
 
